@@ -7,7 +7,6 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
- app.use(cors());
 
 // ✅ Correct CORS config
 app.use(cors({
@@ -31,10 +30,11 @@ app.post('/convert', upload.single('video'), (req, res) => {
   ffmpeg(inputPath)
     .toFormat('mp3')
     .on('end', () => {
-      res.download(outputPath, 'converted.mp3', () => {
-        fs.unlinkSync(inputPath);
-        fs.unlinkSync(outputPath);
-      });
+      res.sendFile(path.resolve(outputPath), () => {
+  fs.unlinkSync(inputPath);
+  fs.unlinkSync(outputPath);
+});
+
     })
     .on('error', (err) => {
       console.error('Conversion error:', err);
@@ -47,8 +47,6 @@ app.post('/convert', upload.single('video'), (req, res) => {
 app.listen(5000, () => {
   console.log('✅ Server running on http://localhost:5000');
 });
-
-
 
  // server/server.js
 // const express = require('express');
