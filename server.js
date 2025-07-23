@@ -1,4 +1,3 @@
-// server/server.js
 const express = require('express');
 const multer = require('multer');
 const ffmpeg = require('fluent-ffmpeg');
@@ -8,33 +7,35 @@ const path = require('path');
 
 const app = express();
 
-// ✅ Correct CORS config
 app.use(cors({
   origin: 'https://mp4-to-mp3-front-end-nu.vercel.app',
 }));
 
-// ✅ Set upload location
 const upload = multer({ dest: 'uploads/' });
 
-// ✅ Ensure converted directory exists
 const outputDir = path.join(__dirname, 'converted');
 if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir);
 }
 
-// ✅ Conversion endpoint
 app.post('/convert', upload.single('video'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('No file uploaded');
+  }
+
   const inputPath = req.file.path;
   const outputPath = path.join(outputDir, `${req.file.filename}.mp3`);
 
   ffmpeg(inputPath)
     .toFormat('mp3')
     .on('end', () => {
-      res.sendFile(path.resolve(outputPath), () => {
-  fs.unlinkSync(inputPath);
-  fs.unlinkSync(outputPath);
-});
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Content-Disposition', 'attachment; filename="converted.mp3"');
 
+      res.sendFile(path.resolve(outputPath), () => {
+        fs.unlinkSync(inputPath);
+        fs.unlinkSync(outputPath);
+      });
     })
     .on('error', (err) => {
       console.error('Conversion error:', err);
@@ -43,7 +44,6 @@ app.post('/convert', upload.single('video'), (req, res) => {
     .save(outputPath);
 });
 
-// ✅ Start server
 app.listen(5000, () => {
   console.log('✅ Server running on http://localhost:5000');
 });
