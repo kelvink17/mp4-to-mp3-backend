@@ -8,53 +8,57 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Allow your Vercel frontend to access the server
+// ✅ CORS - Allow frontend from Vercel
 app.use(cors({
   origin: 'https://mp4-to-mp3-front-end-nu.vercel.app',
-  methods: ['POST'],
-  credentials: true
+  methods: ['POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
 }));
 
-// Set temporary upload and output folders (Render requires /tmp)
+// ✅ Safe paths for Render (/tmp)
 const uploadDir = '/tmp/uploads';
 const outputDir = '/tmp/converted';
-
-// Ensure both directories exist
 fs.mkdirSync(uploadDir, { recursive: true });
 fs.mkdirSync(outputDir, { recursive: true });
 
-// Set up multer to store uploaded files
+// ✅ Multer setup (limit: 100MB)
 const upload = multer({
   dest: uploadDir,
-  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
+  limits: { fileSize: 100 * 1024 * 1024 },
 });
 
-// Conversion route
+// ✅ Conversion route
 app.post('/convert', upload.single('video'), (req, res) => {
   if (!req.file) {
+    console.log('❌ No file uploaded');
     return res.status(400).send('No file uploaded.');
   }
 
-  console.log('File received:', req.file);
+  // ✅ These will now run if file exists
+  console.log('✅ File received:', req.file.originalname);
+  console.log('📍 File path:', req.file.path);
 
   const inputPath = req.file.path;
-  const outputPath = path.join(outputDir, `${Date.now()}.mp3`);
+  const outputFileName = `${Date.now()}.mp3`;
+  const outputPath = path.join(outputDir, outputFileName);
 
   ffmpeg(inputPath)
+    .audioCodec('libmp3lame')
     .toFormat('mp3')
     .on('error', (err) => {
       console.error('FFmpeg error:', err.message);
-      res.status(500).send('Error converting file.');
+      res.status(500).send('Error during conversion.');
     })
     .on('end', () => {
-      console.log('Conversion complete:', outputPath);
-      res.download(outputPath, 'output.mp3', (err) => {
+      console.log('✅ Conversion finished:', outputPath);
+      res.setHeader('Content-Disposition', `attachment; filename="${outputFileName}"`);
+
+      res.download(outputPath, outputFileName, (err) => {
         if (err) {
-          console.error('Download error:', err.message);
-          res.status(500).send('Failed to send file.');
+          console.error('Download failed:', err.message);
+          res.status(500).send('Download failed.');
         }
 
-        // Cleanup: Delete both input and output after sending
         fs.unlink(inputPath, () => {});
         fs.unlink(outputPath, () => {});
       });
@@ -62,14 +66,15 @@ app.post('/convert', upload.single('video'), (req, res) => {
     .save(outputPath);
 });
 
+
+// ✅ Health check route
 app.get('/', (req, res) => {
-  res.send('MP4 to MP3 Converter backend is running ✅');
+  res.send('✅ MP4 to MP3 Converter backend is running.');
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`🚀 Server is live on port ${PORT}`);
 });
-
 
  // server/server.js
 // const express = require('express');
