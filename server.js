@@ -4,15 +4,28 @@ const multer = require('multer');
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
-app.use(cors());
 
+// ✅ Correct CORS config
+app.use(cors({
+  origin: 'https://mp4-to-mp3-front-end-nu.vercel.app',
+}));
+
+// ✅ Set upload location
 const upload = multer({ dest: 'uploads/' });
 
-app.post('/convert', upload.single('file'), (req, res) => {
+// ✅ Ensure converted directory exists
+const outputDir = path.join(__dirname, 'converted');
+if (!fs.existsSync(outputDir)) {
+  fs.mkdirSync(outputDir);
+}
+
+// ✅ Conversion endpoint
+app.post('/convert', upload.single('video'), (req, res) => {
   const inputPath = req.file.path;
-  const outputPath = `converted/${req.file.filename}.mp3`;
+  const outputPath = path.join(outputDir, `${req.file.filename}.mp3`);
 
   ffmpeg(inputPath)
     .toFormat('mp3')
@@ -29,6 +42,7 @@ app.post('/convert', upload.single('file'), (req, res) => {
     .save(outputPath);
 });
 
+// ✅ Start server
 app.listen(5000, () => {
   console.log('✅ Server running on http://localhost:5000');
 });
